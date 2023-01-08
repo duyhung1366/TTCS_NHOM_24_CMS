@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
 import type { RootState } from '../../redux/store'
 import { Tag as Tags  } from '../../submodule/models/tag'
-import { apiLoadTags, apiUpdateTag } from '../../api/tagApi'
+import { apiLoadTags, apiLoadTagsByIdCategory, apiUpdateTag } from '../../api/tagApi'
 
 // Define a type for the slice state
 interface TagState {
@@ -25,6 +25,12 @@ export const requestLoadTags = createAsyncThunk('tag/loadTags', async (props: { 
   return res.data
 })
 
+
+export const requestLoadTagsByIdCategory = createAsyncThunk('tag/loadTagsByIdCategory', async (props: {idCategory:string[], status: number }) => {
+  const res = await apiLoadTagsByIdCategory(props);
+  return res.data
+})
+
 export const requestUpdateTag = createAsyncThunk('tag/updateTag', async (props: Tags) => {
   const res = await apiUpdateTag(props);
   return res.data
@@ -38,7 +44,7 @@ export const tagSlice = createSlice({
 
   },
   extraReducers: (builder) => {
-    const actionList = [requestLoadTags, requestUpdateTag];
+    const actionList = [requestLoadTags, requestUpdateTag, requestLoadTagsByIdCategory];
     actionList.forEach(action => {
       builder.addCase(action.pending, (state) => {
         state.loading = true;
@@ -59,6 +65,16 @@ export const tagSlice = createSlice({
       state.tags = action.payload.data.map((o) => new Tags(o));
     })
 
+     // load tag by id category
+     builder.addCase(requestLoadTagsByIdCategory.fulfilled, (state, action: PayloadAction<{
+      data: Tags[],
+      status: number
+    }>) => {
+      state.loading = false;
+      state.tags = action.payload.data.map((o) => new Tags(o));
+    })
+
+    // update
     builder.addCase(requestUpdateTag.fulfilled, (state, action: PayloadAction<{
       data: Tags,
       status: number

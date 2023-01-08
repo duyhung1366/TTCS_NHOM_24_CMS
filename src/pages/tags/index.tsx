@@ -1,6 +1,6 @@
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { unwrapResult } from "@reduxjs/toolkit";
-import { Button, Col, Form, Input, Modal, notification, Popconfirm, Row, Select, Space, Tag, Tooltip } from "antd";
+import { Button, Col, Form, Input, Modal, notification, Popconfirm, Row, Select, Space, Tag, Tooltip, Typography } from "antd";
 import { useForm } from "antd/es/form/Form";
 import Table, { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
@@ -9,7 +9,7 @@ import TTCSconfig from "../../submodule/common/config";
 import { Tag as Tags } from "../../submodule/models/tag";
 import { convertSlug } from "../../utils/slug";
 import { categoryState, requestLoadCategorys } from "../categorys/categorySlice";
-import { requestLoadTags, requestUpdateTag, tagState } from "./tagSlice";
+import { requestLoadTags, requestLoadTagsByIdCategory, requestUpdateTag, tagState } from "./tagSlice";
 
 interface DataType {
   key: string;
@@ -30,6 +30,7 @@ const TagPage = () => {
   const [datas, setDatas] = useState<DataType[]>([]);
   const [statusTag, setStatusTag] = useState<number>(TTCSconfig.STATUS_PUBLIC);
   const [valueEdit, setValueEdit] = useState<Tags | undefined>();
+  const [idCategorys, setIdCategorys] = useState<string[]>([]);
   const categoryStates = useAppSelector(categoryState);
   const categorys = categoryStates.categorys;
   
@@ -46,11 +47,6 @@ const TagPage = () => {
     }
   ]
 
-  
-  useEffect(() => {
-    loadTags(TTCSconfig.STATUS_PUBLIC)
-  }, [])
-
   useEffect(() => {
     setDatas(tags?.map(o => convertDataToTable(o)))
   }, [tags])
@@ -59,17 +55,20 @@ const TagPage = () => {
     if (valueEdit) {
       const { name, status, idCategory } = valueEdit
       form.setFieldsValue({ name, status, idCategory })
-      // descRef?.current?.setContent(des)
     }
   }, [valueEdit])
 
   useEffect(() => {
-    loadTags(statusTag)
-  }, [statusTag])
-
-  useEffect(() => {
     loadCategorys();
   }, []);
+
+  useEffect(() => {
+    if(idCategorys && idCategorys.length) {
+      loadTagsByIdCategory(idCategorys, statusTag );
+    }else {
+      loadTags(statusTag)
+    }
+  }, [statusTag, idCategorys]);
 
   const loadCategorys = async () => {
     try {
@@ -78,7 +77,7 @@ const TagPage = () => {
           status: 1,
         })
       );
-      const res = unwrapResult(actionResult);
+      unwrapResult(actionResult);
     } catch (error) {
       notification.error({
         message: "không tải được danh sach danh mục",
@@ -89,6 +88,20 @@ const TagPage = () => {
   const loadTags = async (status: number) => {
     try {
       const actionResult = await dispatch(requestLoadTags({
+        status
+      }))
+      unwrapResult(actionResult)
+    } catch (error) {
+      notification.error({
+        message: 'không tải được danh sach danh mục'
+      })
+    }
+  }
+
+  const loadTagsByIdCategory = async (idCategory: string[], status: number) => {
+    try {
+      const actionResult = await dispatch(requestLoadTagsByIdCategory({
+        idCategory,
         status
       }))
       unwrapResult(actionResult)
@@ -122,13 +135,17 @@ const TagPage = () => {
           const data = await dispatch(requestUpdateTag({
             id: valueEdit?.id,
             ...value,
-            // des: descRef?.current?.getContent(),
-            // avatar: dataUpload
           }))
-          unwrapResult(data)
-          dispatch(requestLoadTags({
-            status: statusTag
-          }))
+
+          if(idCategorys && idCategorys.length) {
+            loadTagsByIdCategory(idCategorys, statusTag );
+          }else {
+            loadTags(statusTag)
+          }
+          notification.success({
+            message: 'cập nhật thành công',
+            duration: 1.5
+          })
         } catch (error) {
           notification.error({
             message: 'cập nhật không được',
@@ -143,7 +160,6 @@ const TagPage = () => {
     setIsModalOpen(false);
     form.resetFields();
     setValueEdit(undefined)
-    // descRef?.current?.setContent('')
   };
 
   const handleDelete = async (value: Tags) => {
@@ -156,6 +172,10 @@ const TagPage = () => {
       dispatch(requestLoadTags({
         status: statusTag
       }))
+      notification.success({
+        message: 'Xóa thành công',
+        duration: 1.5
+      })
     } catch (error) {
       notification.error({
         message: 'cập nhật không được',
@@ -181,6 +201,7 @@ const TagPage = () => {
       title: "Danh mục cha",
       dataIndex: "idCategory",
       key: "idCategory",
+      width: "32%", 
       render: (idCategory: string[]) => (
         <> 
           {categorys.map((o) =>(
@@ -234,28 +255,49 @@ const TagPage = () => {
       ),
     },
   ];
+  
   return (
-  <div>
+    <div>
+      <Space size='large'>
+        <Button
+          type="primary"
+          onClick={showModal}
+        >
+          Thêm mới
+        </Button>
+        <Space size='small'>
+          <label style={{ marginLeft: "20px" }}>Chọn trạng thái: </label>
+          <Select
+            placeholder={'Bộ lọc'}
+            style={{ width: 150, marginLeft: "20px" }}
+            defaultValue={TTCSconfig.STATUS_PUBLIC}
+            options={status}
+            onChange={(value) => {
+              setStatusTag(value)
+            }}
+          />
+        </Space>
 
-    <Button
-      type="primary"
-      style={{
-        marginBottom: "10px",
-      }}
-      onClick={showModal}
-    >
-      Thêm mới
-    </Button>
-
-      <Select
-        placeholder={'Bộ lọc'}
-        style={{ width: 150, marginLeft: "20px" }}
-        defaultValue={TTCSconfig.STATUS_PUBLIC}
-        options={status}
-        onChange={(value) => {
-          setStatusTag(value)
-        }}
-      />
+        <Space size='small'>
+          <label style={{ marginLeft: "20px" }}>Chọn danh mục: </label>
+          <Select
+            mode="multiple" 
+            placeholder={'Bộ lọc'}
+            style={{ width: 435, marginLeft: "10px" }}
+            options={categorys.map((data) => ({
+              value: data.id,
+              label: data.name,
+            }))}
+                
+            onChange={(value) => {
+              setIdCategorys(value)
+            }}
+            listHeight={128}
+          />
+        </Space>
+      </Space>
+    
+      <Typography.Title level={3}>Danh sách Tag: </Typography.Title>
 
       <Modal
         title="Tạo Tag"
@@ -264,7 +306,7 @@ const TagPage = () => {
         onCancel={handleCancel}
         okText="Lưu"
         cancelText="Hủy"
-        width='90%'
+        width='40%'
         maskClosable={false}
       >
         <Form
@@ -276,7 +318,7 @@ const TagPage = () => {
           form={form}
         >
           <Row gutter={{ xl: 48, md: 16, xs: 0 }}>
-            <Col xl={8} md={8} xs={24}>
+            <Col xl={24} md={24} xs={24}>
               <Form.Item
                 name='name'
                 label="Tên Tag"
@@ -292,7 +334,16 @@ const TagPage = () => {
                 }} />
               </Form.Item>
 
-              <Form.Item name='idCategory' label="Danh mục cha">
+              <Form.Item 
+                name='idCategory'
+                label="Danh mục cha"
+                rules={[
+                  {
+                    required: true,
+                    message: "Vui lòng nhập trường này!",
+                  },
+                ]}
+              >
                 <Select 
                   mode="multiple"
                   options={categorys.map((data) => ({
@@ -310,8 +361,8 @@ const TagPage = () => {
           </Row>
         </Form>
       </Modal>
-    <Table columns={columns} dataSource={datas} loading={loading} />
-  </div>
+      <Table columns={columns} dataSource={datas} loading={loading} />
+    </div>
   )
 }
 

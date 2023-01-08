@@ -17,3 +17,16 @@ export const apiUpdateCategory = async (payload: Category) => {
         payload
     })
 }
+
+
+export const apiOrderCategory = async (payload: {
+    indexRange : Array<{
+        id: string,
+        index: number
+    }>, 
+    status : number 
+}) => {
+    return ApiConfig(ENDPONTAPI.ORDER_CATEGORY, {
+        payload
+    })
+}

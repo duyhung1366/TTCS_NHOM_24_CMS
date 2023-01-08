@@ -2,7 +2,7 @@ import { CommentOutlined } from "@ant-design/icons";
 import { lazy } from "react";
 
 const route = {
-  path: "/FEEDBACK",
+  path: "/feedback",
   label: "Phản hồi",
   icon: <CommentOutlined />,
   exact: true,
